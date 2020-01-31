@@ -11,6 +11,7 @@
     "start": "ts-node src/main.ts"
   },
   "dependencies": {
+    "dotenv": "^8.2.0",
     "google-protobuf": "^3.11.2",
     "iltorb": "^2.4.4",
     "web3": "^1.2.5"
