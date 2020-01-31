@@ -9,5 +9,10 @@
   "private": false,
   "scripts": {
     "start": "ts-node src/main.ts"
+  },
+  "dependencies": {
+    "google-protobuf": "^3.11.2",
+    "iltorb": "^2.4.4",
+    "web3": "^1.2.5"
   }
 }
