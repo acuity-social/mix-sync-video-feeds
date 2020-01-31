@@ -1,0 +1,13 @@
+{
+  "name": "mix-sync-video-feeds",
+  "version": "1.0.0",
+  "description": "Syncs video feeds from external sources.",
+  "main": "src/main.ts",
+  "repository": "git@github.com:mix-blockchain/mix-sync-video-feeds.git",
+  "author": "Jonathan Brown <jbrown@mix-blockchain.org>",
+  "license": "Apache-2.0",
+  "private": false,
+  "scripts": {
+    "start": "ts-node src/main.ts"
+  }
+}
