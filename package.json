@@ -8,9 +8,10 @@
   "license": "Apache-2.0",
   "private": false,
   "scripts": {
-    "start": "ts-node src/main.ts"
+    "start": "ts-node -r dotenv/config src/main.ts"
   },
   "dependencies": {
+    "@types/node": "^13.7.0",
     "dotenv": "^8.2.0",
     "google-protobuf": "^3.11.2",
     "iltorb": "^2.4.4",
