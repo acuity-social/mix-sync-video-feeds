@@ -1,8 +1,10 @@
 import levelup from 'levelup'
 import leveldown from 'leveldown'
-import { exec } from 'child_process'
+import { exec, spawn } from 'child_process'
 
 let db
+let crf: string = '23'
+let preset: string = 'veryslow'
 
 function getId(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -16,20 +18,21 @@ function getId(): Promise<string> {
   })
 }
 
-function download(id: string) {
+function download(id: string): Promise<any> {
   return new Promise((resolve, reject) => {
-    exec('youtube-dl --quiet --id --merge-output-format mkv https://www.youtube.com/watch?v=' + id, (error, stdout, stderr) => {
+    exec('youtube-dl --print-json --id --merge-output-format mkv https://www.youtube.com/watch?v=' + id, (error, stdout, stderr) => {
       if (error) {
         reject (error)
       }
-      resolve()
+      resolve(JSON.parse(stdout))
     })
   })
 }
 
-function interrogate(id: string): Promise<object> {
+function interrogate(id: string): Promise<any> {
   return new Promise((resolve, reject) => {
-    exec('ffmpeg -i ' + id + '.mkv', (error: Error | null, stdout, stderr) => {
+    let filepath: string = id + '.mkv'
+    exec('ffmpeg -i ' + filepath, (error: Error | null, stdout, stderr) => {
       let output: string = error!.toString()
       let info: any = {}
       let matches: RegExpMatchArray = output.match(/Duration: (\d*):(\d*):(\d*)\./)!
@@ -43,7 +46,80 @@ function interrogate(id: string): Promise<object> {
       matches = output.match(/Audio: (\w*)/)!
       info.codecAudio = matches[1]
       resolve(info)
+
+      let supported_resolutions: number[] = [20, 40, 80, 120, 160, 240, 320, 480]
+      let resolutions: number[] = []
+
+      for (let b of supported_resolutions) {
+        if (b * 9 <= info.height) {
+          resolutions.push(b)
+        }
+        else {
+          break
+        }
+      }
+
+      info.jobs = []
+
+      for (let b of resolutions) {
+        let height = b * 9
+        let width = (height * info.width) / info.height
+
+        info.jobs.push({
+          filepath: filepath,
+          height: height,
+          width: width,
+          audioPassthrough: info.codecAudio == 'aac',
+        })
+      }
+
     })
+  })
+}
+
+function h264Args(job: any) {
+  let args: string[] = []
+
+  args.push('-i')
+  args.push(job.filepath)
+  args.push('-c:v')
+  args.push('libx264')
+  args.push('-crf')
+  args.push(crf)
+  args.push('-preset')
+  args.push(preset)
+  args.push('-vf')
+  args.push('scale=' + job.width + ':' + job.height)
+  args.push('-g')
+  args.push('240')
+  args.push('-c:a')
+  if (job.audioPassthrough) {
+    args.push('copy')
+  }
+  else {
+    args.push('aac')
+  }
+  args.push('-movflags')
+  args.push('+faststart')
+  args.push('-y')
+  args.push(job.height + '.mp4')
+
+  return args
+}
+
+function transcode(job: any) {
+  return new Promise((resolve, reject) => {
+    let args: string[] = h264Args(job)
+    let ffmpegProcess = spawn('ffmpeg', args)
+    ffmpegProcess.stdout.on('data', (data) => {
+      console.log(data.toString())
+    })
+
+    ffmpegProcess.stderr.on('data', (data) => {
+      console.log(data.toString())
+    })
+
+    ffmpegProcess.on('close', resolve)
   })
 }
 
@@ -64,9 +140,13 @@ async function start() {
   }
 
   console.log('id:', id)
-  await download(id)
-  let result: object = await interrogate(id)
-  console.log(result)
+  let info = await download(id)
+  console.log('Title:', info.title)
+  let result: any = await interrogate(id)
+
+  for (let job of result.jobs) {
+    await transcode(job)
+  }
 
   db.put('lastId', id)
 }
