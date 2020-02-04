@@ -11,10 +11,14 @@
     "start": "ts-node -r dotenv/config src/main.ts"
   },
   "dependencies": {
+    "@types/leveldown": "^4.0.2",
+    "@types/levelup": "^4.3.0",
     "@types/node": "^13.7.0",
     "dotenv": "^8.2.0",
     "google-protobuf": "^3.11.2",
     "iltorb": "^2.4.4",
+    "leveldown": "^5.4.1",
+    "levelup": "^4.3.2",
     "web3": "^1.2.5"
   }
 }

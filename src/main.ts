@@ -1,6 +1,10 @@
+import levelup from 'levelup'
+import leveldown from 'leveldown'
 import { exec } from 'child_process'
 
-async function getId(): Promise<string> {
+let db
+
+function getId(): Promise<string> {
   return new Promise((resolve, reject) => {
     exec('youtube-dl --dump-single-json --playlist-end 2 --flat-playlist "' + process.env.FEED_SOURCE_URI + '"', (error, stdout, stderr) => {
       if (error) {
@@ -12,7 +16,7 @@ async function getId(): Promise<string> {
   })
 }
 
-async function download(id: string) {
+function download(id: string) {
   return new Promise((resolve, reject) => {
     exec('youtube-dl --quiet --id --merge-output-format mkv https://www.youtube.com/watch?v=' + id, (error, stdout, stderr) => {
       if (error) {
@@ -44,11 +48,27 @@ function interrogate(id: string): Promise<object> {
 }
 
 async function start() {
+  db = levelup(leveldown('level.db'))
+  let lastId: string = ''
+
+  try {
+    lastId = (await db.get('lastId')).toString()
+    console.log('lastId:', lastId)
+  }
+  catch (e) {}
+
   let id:string = await getId()
-  console.log(id)
+
+  if (id == lastId) {
+    return
+  }
+
+  console.log('id:', id)
   await download(id)
   let result: object = await interrogate(id)
   console.log(result)
+
+  db.put('lastId', id)
 }
 
 start()
