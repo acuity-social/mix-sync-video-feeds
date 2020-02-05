@@ -19,6 +19,7 @@
     "google-protobuf": "^3.11.2",
     "leveldown": "^5.4.1",
     "levelup": "^4.3.2",
+    "sharp": "^0.24.0",
     "web3": "^1.2.6"
   }
 }
