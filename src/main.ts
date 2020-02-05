@@ -3,8 +3,6 @@ import leveldown from 'leveldown'
 import { exec, spawn } from 'child_process'
 
 let db
-let crf: string = '23'
-let preset: string = 'veryslow'
 
 function getId(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -85,9 +83,9 @@ function h264Args(job: any) {
   args.push('-c:v')
   args.push('libx264')
   args.push('-crf')
-  args.push(crf)
+  args.push(process.env.H264_CRF!)
   args.push('-preset')
-  args.push(preset)
+  args.push(process.env.H264_PRESET!)
   args.push('-vf')
   args.push('scale=' + job.width + ':' + job.height)
   args.push('-g')
@@ -112,14 +110,29 @@ function transcode(job: any) {
     let args: string[] = h264Args(job)
     let ffmpegProcess = spawn('ffmpeg', args)
     ffmpegProcess.stdout.on('data', (data) => {
-      console.log(data.toString())
+      console.log(data.toString().trim())
     })
 
     ffmpegProcess.stderr.on('data', (data) => {
-      console.log(data.toString())
+      console.log(data.toString().trim())
     })
 
     ffmpegProcess.on('close', resolve)
+  })
+}
+
+function ipfsAdd(filename: string): Promise<string> {
+  return new Promise(async (resolve, reject) => {
+    let args = ['add', '-Q', '--raw-leaves', filename]
+    let ipfsProcess = spawn('ipfs', args)
+
+    ipfsProcess.stdout.on('data', (data) => {
+      resolve(data.toString())
+    })
+
+    ipfsProcess.stderr.on('data', (data) => {
+      reject(data.toString())
+    })
   })
 }
 
@@ -146,6 +159,8 @@ async function start() {
 
   for (let job of result.jobs) {
     await transcode(job)
+    let ipfsHash: string = await ipfsAdd(job.height + '.mp4')
+    console.log(ipfsHash)
   }
 
   db.put('lastId', id)
