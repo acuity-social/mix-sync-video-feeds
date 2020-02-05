@@ -2,6 +2,7 @@ import levelup from 'levelup'
 import leveldown from 'leveldown'
 import { exec, spawn } from 'child_process'
 import { load } from 'protobufjs'
+import { brotliCompressSync } from 'zlib'
 
 let db
 
@@ -199,6 +200,8 @@ async function start() {
     mixinPayloadProto.create({ mixinId: 0x2d382044, payload: bodyTextMixinMessage }),
     mixinPayloadProto.create({ mixinId: 0x51108feb, payload: videoMixinMessage }),
   ]})).finish()
+
+  let payload = brotliCompressSync(itemMessage)
 
   db.put('lastId', id)
 }
