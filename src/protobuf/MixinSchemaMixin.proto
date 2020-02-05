@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+message MixinSchemaMixin {
+  string mixin_schema = 1;   // Protobuf schema for this mixin type.
+}

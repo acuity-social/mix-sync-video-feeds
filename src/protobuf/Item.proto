@@ -1,0 +1,16 @@
+/**
+ * Protocol Buffers schema for MIX items.
+ *
+ * All items must be encoded with this schema.
+ */
+
+syntax = "proto3";
+
+message MixinPayload {
+  fixed32 mixin_id = 1; // Short itemId of the mixin schema.
+  bytes payload = 2;    // Protobuf encoded mixin contents.
+}
+
+message Item {
+  repeated MixinPayload mixin_payload = 1;
+}
