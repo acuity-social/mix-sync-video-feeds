@@ -1,6 +1,7 @@
 import levelup from 'levelup'
 import leveldown from 'leveldown'
 import { exec, spawn } from 'child_process'
+import { load } from 'protobufjs'
 
 let db
 
@@ -155,13 +156,49 @@ async function start() {
   console.log('id:', id)
   let info = await download(id)
   console.log('Title:', info.title)
+
+  let itemProtoRoot = await load('./src/protobuf/Item.proto')
+  let itemProto = itemProtoRoot.lookupType('Item')
+  let mixinPayloadProto = itemProtoRoot.lookupType('MixinPayload')
+
+  let titleMixinProtoRoot = await load('./src/protobuf/TitleMixin.proto')
+  let titleMixinProto = titleMixinProtoRoot.lookupType('TitleMixin')
+
+  let bodyTextMixinProtoRoot = await load('./src/protobuf/BodyTextMixin.proto')
+  let bodyTextMixinProto = bodyTextMixinProtoRoot.lookupType('BodyTextMixin')
+
+  let videoMixinProtoRoot = await load('./src/protobuf/VideoMixin.proto')
+  let videoMixinProto = videoMixinProtoRoot.lookupType('VideoMixin')
+  let encodingProto = videoMixinProtoRoot.lookupType('Encoding')
+
+  let titleMixinMessage = titleMixinProto.encode(titleMixinProto.create({title: info.title})).finish()
+  let bodyTextMixinMessage = bodyTextMixinProto.encode(bodyTextMixinProto.create({bodyText: info.description})).finish()
+
   let result: any = await interrogate(id)
+
+  let encodings: any[] = []
 
   for (let job of result.jobs) {
     await transcode(job)
     let ipfsHash: string = await ipfsAdd(job.height + '.mp4')
     console.log(ipfsHash)
+
+    encodings.push(encodingProto.create({
+      ipfsHash: ipfsHash,
+      width: job.width,
+      height: job.height,
+    }))
+
+    break
   }
+
+  let videoMixinMessage = videoMixinProto.encode(videoMixinProto.create({encoding: encodings})).finish()
+
+  let itemMessage = itemProto.encode(itemProto.create({mixinPayload: [
+    mixinPayloadProto.create({ mixinId: 0x344f4812, payload: titleMixinMessage }),
+    mixinPayloadProto.create({ mixinId: 0x2d382044, payload: bodyTextMixinMessage }),
+    mixinPayloadProto.create({ mixinId: 0x51108feb, payload: videoMixinMessage }),
+  ]})).finish()
 
   db.put('lastId', id)
 }
