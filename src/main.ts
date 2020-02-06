@@ -3,6 +3,8 @@ import leveldown from 'leveldown'
 import { exec, spawn } from 'child_process'
 import { load } from 'protobufjs'
 import { brotliCompressSync } from 'zlib'
+let Web3 = require('web3')
+import * as net from 'net'
 
 let db
 
@@ -139,6 +141,9 @@ function ipfsAdd(filename: string): Promise<string> {
 }
 
 async function start() {
+  let web3 = new Web3(new Web3.providers.IpcProvider(process.env.MIX_IPC_PATH!, net))
+  console.log('Block:', (await web3.eth.getBlockNumber()).toLocaleString())
+
   db = levelup(leveldown('level.db'))
   let lastId: string = ''
 
