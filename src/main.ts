@@ -6,8 +6,8 @@ import { brotliCompressSync } from 'zlib'
 let Web3 = require('web3')
 import * as net from 'net'
 import * as bip32 from 'bip32'
-import { BIP32Interface } from 'bip32'
 import * as bip39  from 'bip39'
+import * as bs58 from 'bs58'
 
 let db
 
@@ -134,7 +134,7 @@ function ipfsAdd(filename: string): Promise<string> {
     let ipfsProcess = spawn('ipfs', args)
 
     ipfsProcess.stdout.on('data', (data) => {
-      resolve(data.toString())
+      resolve(data.toString().trim())
     })
 
     ipfsProcess.stderr.on('data', (data) => {
@@ -148,7 +148,7 @@ async function start() {
   console.log('Block:', (await web3.eth.getBlockNumber()).toLocaleString())
 
   // Calculate private key and controller address.
-  let node: BIP32Interface = bip32.fromSeed(await bip39.mnemonicToSeed(process.env.RECOVERY_PHRASE!))
+  let node: bip32.BIP32Interface = bip32.fromSeed(await bip39.mnemonicToSeed(process.env.RECOVERY_PHRASE!))
   let privateKey: string = '0x' + node.derivePath("m/44'/76'/0'/0/0").privateKey!.toString('hex')
   let controllerAddress: string = web3.eth.accounts.privateKeyToAccount(privateKey).address
   console.log('Controller address: ', controllerAddress)
@@ -204,7 +204,7 @@ async function start() {
     console.log(ipfsHash)
 
     encodings.push(encodingProto.create({
-      ipfsHash: ipfsHash,
+      ipfsHash: bs58.decode(ipfsHash),
       width: job.width,
       height: job.height,
     }))
