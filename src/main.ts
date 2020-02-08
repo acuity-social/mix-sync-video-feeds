@@ -151,7 +151,12 @@ async function start() {
   let node: BIP32Interface = bip32.fromSeed(await bip39.mnemonicToSeed(process.env.RECOVERY_PHRASE!))
   let privateKey: string = '0x' + node.derivePath("m/44'/76'/0'/0/0").privateKey!.toString('hex')
   let controllerAddress: string = web3.eth.accounts.privateKeyToAccount(privateKey).address
-  console.log(controllerAddress)
+  console.log('Controller address: ', controllerAddress)
+
+  // Lookup contract address on blockchain.
+  let accountRegistry = new web3.eth.Contract(require('./contracts/MixAccountRegistry.abi.json'), '0xbcab5026b4d79396b222abc4d1ca36db10984c73')
+  let contractAddress: string = await accountRegistry.methods.get(controllerAddress).call()
+  console.log('Contract address: ', contractAddress)
 
   db = levelup(leveldown('level.db'))
   let lastId: string = ''
