@@ -5,6 +5,9 @@ import { load } from 'protobufjs'
 import { brotliCompressSync } from 'zlib'
 let Web3 = require('web3')
 import * as net from 'net'
+import * as bip32 from 'bip32'
+import { BIP32Interface } from 'bip32'
+import * as bip39  from 'bip39'
 
 let db
 
@@ -143,6 +146,12 @@ function ipfsAdd(filename: string): Promise<string> {
 async function start() {
   let web3 = new Web3(new Web3.providers.IpcProvider(process.env.MIX_IPC_PATH!, net))
   console.log('Block:', (await web3.eth.getBlockNumber()).toLocaleString())
+
+  // Calculate private key and controller address.
+  let node: BIP32Interface = bip32.fromSeed(await bip39.mnemonicToSeed(process.env.RECOVERY_PHRASE!))
+  let privateKey: string = '0x' + node.derivePath("m/44'/76'/0'/0/0").privateKey!.toString('hex')
+  let controllerAddress: string = web3.eth.accounts.privateKeyToAccount(privateKey).address
+  console.log(controllerAddress)
 
   db = levelup(leveldown('level.db'))
   let lastId: string = ''
