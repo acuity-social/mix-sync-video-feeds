@@ -8,8 +8,10 @@ import * as net from 'net'
 import * as bip32 from 'bip32'
 import * as bip39  from 'bip39'
 import * as bs58 from 'bs58'
+import { request } from 'http'
 
 let db
+let web3: any
 
 function getId(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -128,7 +130,7 @@ function transcode(job: any) {
   })
 }
 
-function ipfsAdd(filename: string): Promise<string> {
+function ipfsAddFile(filename: string): Promise<string> {
   return new Promise(async (resolve, reject) => {
     let args = ['add', '-Q', '--raw-leaves', filename]
     let ipfsProcess = spawn('ipfs', args)
@@ -143,8 +145,46 @@ function ipfsAdd(filename: string): Promise<string> {
   })
 }
 
+function ipfsAdd(data: Buffer): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let boundary = web3.utils.randomHex(32)
+
+    let options = {
+      headers: {
+        'Content-Type': 'multipart/form-data; boundary=' + boundary,
+      },
+      method: 'POST',
+      path: '/api/v0/add',
+      port: process.env.IPFS_PORT,
+    }
+
+    let postData = '--' + boundary + '\r\n'
+    postData += 'Content-Disposition: form-data"\r\n'
+    postData += 'Content-Type: application/octet-stream\r\n\r\n'
+    postData += data.toString('binary')
+    postData += '\r\n--' + boundary + '--\r\n'
+
+    let req = request(options)
+    .on('response', res => {
+      let body = ''
+      res.on('data', data => {
+        body += data
+      })
+      res.on('end', () => {
+        resolve(JSON.parse(body).Hash)
+      })
+    })
+    .on('error', (error) => {
+      reject(error)
+    })
+
+    req.write(postData);
+    req.end();
+  })
+}
+
 async function start() {
-  let web3 = new Web3(new Web3.providers.IpcProvider(process.env.MIX_IPC_PATH!, net))
+  web3 = new Web3(new Web3.providers.IpcProvider(process.env.MIX_IPC_PATH!, net))
   console.log('Block:', (await web3.eth.getBlockNumber()).toLocaleString())
 
   // Calculate private key and controller address.
@@ -200,7 +240,7 @@ async function start() {
 
   for (let job of result.jobs) {
     await transcode(job)
-    let ipfsHash: string = await ipfsAdd(job.height + '.mp4')
+    let ipfsHash: string = await ipfsAddFile(job.height + '.mp4')
     console.log(ipfsHash)
 
     encodings.push(encodingProto.create({
@@ -222,6 +262,8 @@ async function start() {
 
   let payload = brotliCompressSync(itemMessage)
 
+  let ipfsHash = await ipfsAdd(payload)
+  console.log(ipfsHash)
   db.put('lastId', id)
 }
 
