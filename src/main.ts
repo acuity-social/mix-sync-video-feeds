@@ -146,7 +146,7 @@ function ipfsAddFile(filename: string): Promise<string> {
   })
 }
 
-function ipfsAdd(data: Buffer): Promise<string> {
+function ipfsAdd(data: Buffer, encoding: string = 'binary'): Promise<any> {
   return new Promise((resolve, reject) => {
     let boundary = web3.utils.randomHex(32)
 
@@ -172,15 +172,80 @@ function ipfsAdd(data: Buffer): Promise<string> {
         body += data
       })
       res.on('end', () => {
-        resolve(JSON.parse(body).Hash)
+        resolve(JSON.parse(body))
       })
     })
     .on('error', (error) => {
       reject(error)
     })
 
-    req.write(postData);
+    req.write(postData, encoding);
     req.end();
+  })
+}
+
+function getImageMixinMessage(id: string) {
+  return new Promise(async (resolve, reject) => {
+    let imageMixinProtoRoot = await load('./src/protobuf/ImageMixin.proto')
+    let imageMixinProto = imageMixinProtoRoot.lookupType('ImageMixin')
+    let mipmapLevelProto = imageMixinProtoRoot.lookupType('MipmapLevel')
+
+    // Use SIMD instructions if available.
+    sharp.simd(true)
+    let source = sharp(id + '.jpg')
+      .rotate()             // Rotate/flip the image if specified in EXIF.
+
+    let metadata: any = await source.metadata()
+    // Work out correct dimensions if rotation occured.
+    let width, height
+    if (metadata.orientation > 4) {
+      width = metadata.height
+      height = metadata.width
+    }
+    else {
+      width = metadata.width
+      height = metadata.height
+    }
+
+    let mipmaps = []
+    // Don't resize the top-level mipmap.
+    mipmaps.push(source
+      .clone()
+      .jpeg()
+      .toBuffer()
+      .then(data => {
+        return ipfsAdd(data)
+      })
+    )
+
+    let level = 1, outWidth, outHeight
+    do {
+      let scale = 2 ** level
+      outWidth = Math.round(width / scale)
+      outHeight = Math.round(height / scale)
+      mipmaps.push(source
+        .clone()
+        .resize(outWidth, outHeight, {fit: 'fill', fastShrinkOnLoad: false})
+        .jpeg()
+        .toBuffer()
+        .then(data => {
+          return ipfsAdd(data)
+        })
+      )
+      level++
+    }
+    while (outWidth > 64 && outHeight > 64)
+
+    let levels: any[] = []
+
+    for (let mipmap of await Promise.all(mipmaps)) {
+      levels.push(mipmapLevelProto.create({
+        filesize: mipmap.Size,
+        ipfsHash: bs58.decode(mipmap.Hash),
+      }))
+    }
+
+    resolve(imageMixinProto.encode(imageMixinProto.create({mipmap_level: levels})).finish())
   })
 }
 
@@ -259,18 +324,20 @@ async function start() {
   let titleMixinMessage = titleMixinProto.encode(titleMixinProto.create({title: info.title})).finish()
   let bodyTextMixinMessage = bodyTextMixinProto.encode(bodyTextMixinProto.create({bodyText: info.description})).finish()
 
+  let imageMixinMessage = await getImageMixinMessage(id)
   let videoMixinMessage = await getVideoMixinMessage(id)
 
   let itemMessage = itemProto.encode(itemProto.create({mixinPayload: [
     mixinPayloadProto.create({ mixinId: 0x344f4812, payload: titleMixinMessage }),
     mixinPayloadProto.create({ mixinId: 0x2d382044, payload: bodyTextMixinMessage }),
+    mixinPayloadProto.create({ mixinId: 0x045eee8c, payload: imageMixinMessage }),
     mixinPayloadProto.create({ mixinId: 0x51108feb, payload: videoMixinMessage }),
   ]})).finish()
 
   let payload = brotliCompressSync(itemMessage)
 
-  let ipfsHash = await ipfsAdd(payload)
-  console.log(ipfsHash)
+  let ipfsInfo = await ipfsAdd(payload, 'utf8')
+  console.log(ipfsInfo)
   db.put('lastId', id)
 }
 
