@@ -3,12 +3,13 @@ import leveldown from 'leveldown'
 import { exec, spawn } from 'child_process'
 import { load } from 'protobufjs'
 import { brotliCompressSync } from 'zlib'
-let Web3 = require('web3')
-import * as net from 'net'
+import Web3 from 'web3'
+import net from 'net'
 import * as bip32 from 'bip32'
 import * as bip39  from 'bip39'
-import * as bs58 from 'bs58'
+import bs58 from 'bs58'
 import { request } from 'http'
+import sharp from 'sharp'
 
 let db
 let web3: any
@@ -27,7 +28,7 @@ function getId(): Promise<string> {
 
 function download(id: string): Promise<any> {
   return new Promise((resolve, reject) => {
-    exec('youtube-dl --print-json --id --merge-output-format mkv https://www.youtube.com/watch?v=' + id, (error, stdout, stderr) => {
+    exec('youtube-dl --write-thumbnail --print-json --id --merge-output-format mkv https://www.youtube.com/watch?v=' + id, (error, stdout, stderr) => {
       if (error) {
         reject (error)
       }
