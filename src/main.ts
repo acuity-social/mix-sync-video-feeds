@@ -184,6 +184,34 @@ function ipfsAdd(data: Buffer): Promise<string> {
   })
 }
 
+function getVideoMixinMessage(id: string) {
+  return new Promise(async (resolve, reject) => {
+    let videoMixinProtoRoot = await load('./src/protobuf/VideoMixin.proto')
+    let videoMixinProto = videoMixinProtoRoot.lookupType('VideoMixin')
+    let encodingProto = videoMixinProtoRoot.lookupType('Encoding')
+
+    let result: any = await interrogate(id)
+
+    let encodings: any[] = []
+
+    for (let job of result.jobs) {
+      await transcode(job)
+      let ipfsHash: string = await ipfsAddFile(job.height + '.mp4')
+      console.log(ipfsHash)
+
+      encodings.push(encodingProto.create({
+        ipfsHash: bs58.decode(ipfsHash),
+        width: job.width,
+        height: job.height,
+      }))
+
+      break
+    }
+
+    resolve(videoMixinProto.encode(videoMixinProto.create({encoding: encodings})).finish())
+  })
+}
+
 async function start() {
   web3 = new Web3(new Web3.providers.IpcProvider(process.env.MIX_IPC_PATH!, net))
   console.log('Block:', (await web3.eth.getBlockNumber()).toLocaleString())
@@ -228,32 +256,10 @@ async function start() {
   let bodyTextMixinProtoRoot = await load('./src/protobuf/BodyTextMixin.proto')
   let bodyTextMixinProto = bodyTextMixinProtoRoot.lookupType('BodyTextMixin')
 
-  let videoMixinProtoRoot = await load('./src/protobuf/VideoMixin.proto')
-  let videoMixinProto = videoMixinProtoRoot.lookupType('VideoMixin')
-  let encodingProto = videoMixinProtoRoot.lookupType('Encoding')
-
   let titleMixinMessage = titleMixinProto.encode(titleMixinProto.create({title: info.title})).finish()
   let bodyTextMixinMessage = bodyTextMixinProto.encode(bodyTextMixinProto.create({bodyText: info.description})).finish()
 
-  let result: any = await interrogate(id)
-
-  let encodings: any[] = []
-
-  for (let job of result.jobs) {
-    await transcode(job)
-    let ipfsHash: string = await ipfsAddFile(job.height + '.mp4')
-    console.log(ipfsHash)
-
-    encodings.push(encodingProto.create({
-      ipfsHash: bs58.decode(ipfsHash),
-      width: job.width,
-      height: job.height,
-    }))
-
-    break
-  }
-
-  let videoMixinMessage = videoMixinProto.encode(videoMixinProto.create({encoding: encodings})).finish()
+  let videoMixinMessage = await getVideoMixinMessage(id)
 
   let itemMessage = itemProto.encode(itemProto.create({mixinPayload: [
     mixinPayloadProto.create({ mixinId: 0x344f4812, payload: titleMixinMessage }),
