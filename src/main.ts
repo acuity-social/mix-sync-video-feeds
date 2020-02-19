@@ -10,9 +10,30 @@ import * as bip39  from 'bip39'
 import bs58 from 'bs58'
 import { request } from 'http'
 import sharp from 'sharp'
+import EthCommon from 'ethereumjs-common'
+import { Transaction as EthTx } from 'ethereumjs-tx'
+let multihashes = require('multihashes')
+
+let mixCommon = EthCommon.forCustomChain(
+  'mainnet',
+  {
+    name: 'mix',
+    networkId: 76,
+    chainId: 76,
+  },
+  'byzantium',
+)
 
 let db
 let web3: any
+let accountRegistry
+let itemDagFeedItems
+let itemStoreAddress = '0x26b10bb026700148962c4a948b08ae162d18c0af'
+let itemStoreIpfsSha256
+let accountControllerAddress: string
+let accountContractAddress: string
+let accountContract: any
+let privateKey: string
 
 function getId(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -179,8 +200,8 @@ function ipfsAdd(data: Buffer, encoding: string = 'binary'): Promise<any> {
       reject(error)
     })
 
-    req.write(postData, encoding);
-    req.end();
+    req.write(postData, encoding)
+    req.end()
   })
 }
 
@@ -281,20 +302,60 @@ function getVideoMixinMessage(id: string) {
   })
 }
 
+async function _send(transaction: any) {
+  return new Promise(async (resolve, reject) => {
+    let nonce = await web3.eth.getTransactionCount(accountControllerAddress)
+    let data = await transaction.encodeABI()
+    let rawTx = {
+      nonce: nonce,
+      from: accountControllerAddress,
+      to: accountContractAddress,
+      gasPrice: '0x3b9aca00',
+      data: data,
+      gas: 200000,
+    }
+    let tx = new EthTx(rawTx, { common: mixCommon })
+    tx.sign(Buffer.from(privateKey.substr(2), 'hex'))
+    let serializedTx = tx.serialize()
+    web3.eth.sendSignedTransaction('0x' + serializedTx.toString('hex'))
+    .on('error', reject)
+    .on('transactionHash', (transactionHash: any) => {
+      web3.eth.getTransaction(transactionHash)
+      .then(resolve)
+    })
+  })
+}
+
+async function sendData(contract: any, method: string, params: any) {
+  let to = contract.options.address
+  let data = contract.methods[method](...params).encodeABI()
+  let inner = accountContract.methods.sendCallNoReturn(to, data)
+  return await _send(inner)
+}
+
 async function start() {
   web3 = new Web3(new Web3.providers.IpcProvider(process.env.MIX_IPC_PATH!, net))
+  web3.eth.defaultBlock = 'pending'
+  web3.eth.transactionConfirmationBlocks = 1
   console.log('Block:', (await web3.eth.getBlockNumber()).toLocaleString())
+
+  accountRegistry = new web3.eth.Contract(require('./contracts/MixAccountRegistry.abi.json'), '0xbcab5026b4d79396b222abc4d1ca36db10984c73')
+  itemDagFeedItems = new web3.eth.Contract(require('./contracts/MixItemDagOnlyOwner.abi.json'), '0x622d9bd5adf631c6e190f8d2beebcd5533ffa5e6')
+  itemStoreIpfsSha256 = new web3.eth.Contract(require('./contracts/MixItemStoreIpfsSha256.abi.json'), itemStoreAddress)
+
+  let feedId = '0x' + bs58.decode(process.env.FEED_ID!).toString('hex') + 'f1b5847865d2094d'
 
   // Calculate private key and controller address.
   let node: bip32.BIP32Interface = bip32.fromSeed(await bip39.mnemonicToSeed(process.env.RECOVERY_PHRASE!))
-  let privateKey: string = '0x' + node.derivePath("m/44'/76'/0'/0/0").privateKey!.toString('hex')
-  let controllerAddress: string = web3.eth.accounts.privateKeyToAccount(privateKey).address
-  console.log('Controller address: ', controllerAddress)
+  privateKey = '0x' + node.derivePath("m/44'/76'/0'/0/0").privateKey!.toString('hex')
+  accountControllerAddress = web3.eth.accounts.privateKeyToAccount(privateKey).address
+  console.log('Account controller address:', accountControllerAddress)
 
   // Lookup contract address on blockchain.
-  let accountRegistry = new web3.eth.Contract(require('./contracts/MixAccountRegistry.abi.json'), '0xbcab5026b4d79396b222abc4d1ca36db10984c73')
-  let contractAddress: string = await accountRegistry.methods.get(controllerAddress).call()
-  console.log('Contract address: ', contractAddress)
+  accountContractAddress = await accountRegistry.methods.get(accountControllerAddress).call()
+  console.log('Account contract address:', accountContractAddress)
+
+  accountContract = new web3.eth.Contract(require('./contracts/MixAccount2.abi.json'), accountContractAddress)
 
   db = levelup(leveldown('level.db'))
   let lastId: string = ''
@@ -341,8 +402,14 @@ async function start() {
   let payload = brotliCompressSync(itemMessage)
 
   let ipfsInfo = await ipfsAdd(payload, 'utf8')
-  console.log(ipfsInfo)
+  let flagsNonce: string = '0x0f' + web3.utils.randomHex(31).substr(2)
+  let itemId: string = await itemStoreIpfsSha256.methods.getNewItemId(accountContractAddress, flagsNonce).call()
+  let decodedHash = multihashes.decode(multihashes.fromB58String(ipfsInfo.Hash))
+  await sendData(itemDagFeedItems, 'addChild', [feedId, itemStoreAddress, flagsNonce])
+  await sendData(itemStoreIpfsSha256, 'create', [flagsNonce, '0x' + decodedHash.digest.toString('hex')])
+
   db.put('lastId', id)
+  db.close()
 }
 
 start()
