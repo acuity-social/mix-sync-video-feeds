@@ -245,7 +245,11 @@ function getImageMixinMessage(id: string) {
       }))
     }
 
-    resolve(imageMixinProto.encode(imageMixinProto.create({mipmap_level: levels})).finish())
+    resolve(imageMixinProto.encode(imageMixinProto.create({
+      width: width,
+      height: height,
+      mipmapLevel: levels,
+    })).finish())
   })
 }
 
