@@ -13,6 +13,7 @@ import sharp from 'sharp'
 import EthCommon from 'ethereumjs-common'
 import { Transaction as EthTx } from 'ethereumjs-tx'
 let multihashes = require('multihashes')
+import fs from 'fs'
 
 let mixCommon = EthCommon.forCustomChain(
   'mainnet',
@@ -265,6 +266,7 @@ function getImageMixinMessage(id: string) {
         ipfsHash: bs58.decode(mipmap.Hash),
       }))
     }
+    fs.unlinkSync(id + '.jpg')
 
     resolve(imageMixinProto.encode(imageMixinProto.create({
       width: width,
@@ -288,6 +290,7 @@ function getVideoMixinMessage(id: string) {
       await transcode(job)
       let ipfsHash: string = await ipfsAddFile(job.height + '.mp4')
       console.log(ipfsHash)
+      fs.unlinkSync(job.height + '.mp4')
 
       encodings.push(encodingProto.create({
         ipfsHash: bs58.decode(ipfsHash),
@@ -297,6 +300,7 @@ function getVideoMixinMessage(id: string) {
 
       break
     }
+    fs.unlinkSync(id + '.mkv')
 
     resolve(videoMixinProto.encode(videoMixinProto.create({encoding: encodings})).finish())
   })
