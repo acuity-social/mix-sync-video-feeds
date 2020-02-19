@@ -75,7 +75,6 @@ function interrogate(id: string): Promise<any> {
       info.codecVideo = matches[1]
       matches = output.match(/Audio: (\w*)/)!
       info.codecAudio = matches[1]
-      resolve(info)
 
       let supported_resolutions: number[] = [20, 40, 80, 120, 160, 240, 320, 480]
       let resolutions: number[] = []
@@ -102,7 +101,7 @@ function interrogate(id: string): Promise<any> {
           audioPassthrough: info.codecAudio == 'aac',
         })
       }
-
+      resolve(info)
     })
   })
 }
@@ -297,12 +296,13 @@ function getVideoMixinMessage(id: string) {
         width: job.width,
         height: job.height,
       }))
-
-      break
     }
     fs.unlinkSync(id + '.mkv')
 
-    resolve(videoMixinProto.encode(videoMixinProto.create({encoding: encodings})).finish())
+    resolve(videoMixinProto.encode(videoMixinProto.create({
+      duration: result.duration,
+      encoding: encodings,
+    })).finish())
   })
 }
 
@@ -411,6 +411,7 @@ async function start() {
   let decodedHash = multihashes.decode(multihashes.fromB58String(ipfsInfo.Hash))
   await sendData(itemDagFeedItems, 'addChild', [feedId, itemStoreAddress, flagsNonce])
   await sendData(itemStoreIpfsSha256, 'create', [flagsNonce, '0x' + decodedHash.digest.toString('hex')])
+  console.log('ItemId:', itemId)
 
   db.put('lastId', id)
   db.close()
