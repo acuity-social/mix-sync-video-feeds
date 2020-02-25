@@ -25,27 +25,48 @@ let mixCommon = EthCommon.forCustomChain(
   'byzantium',
 )
 
-let db
+let db: any
 let web3: any
-let accountRegistry
-let itemDagFeedItems
-let itemStoreAddress = '0x26b10bb026700148962c4a948b08ae162d18c0af'
-let itemStoreIpfsSha256
+let accountRegistry: any
+let itemDagFeedItems: any
+let itemStoreAddress: string = '0x26b10bb026700148962c4a948b08ae162d18c0af'
+let itemStoreIpfsSha256: any
 let accountControllerAddress: string
 let accountContractAddress: string
 let accountContract: any
 let privateKey: string
+let checking: boolean = false
 
-function getId(): Promise<string> {
+function getIds(i: number): Promise<string[]> {
   return new Promise((resolve, reject) => {
-    exec('youtube-dl --dump-single-json --playlist-end 2 --flat-playlist "' + process.env.FEED_SOURCE_URI + '"', (error, stdout, stderr) => {
+    exec('youtube-dl --dump-single-json --playlist-start ' + (i + 1) + ' --playlist-end ' + (i + 2) + ' --flat-playlist "' + process.env.FEED_SOURCE_URI + '"', (error, stdout, stderr) => {
       if (error) {
         reject (error)
       }
       let output = JSON.parse(stdout)
-      resolve(output.entries[0].id)
+      resolve([output.entries[0].id, output.entries[1].id])
     })
   })
+}
+
+async function getFirstId(): Promise<string> {
+  let ids: string[] = await getIds(0)
+  return ids[0]
+}
+
+async function getNextId(lastId: string): Promise<string> {
+  let i: number = 0
+  let ids: string[]
+
+  do {
+    ids = await getIds(i)
+    if (ids[0] == lastId) {
+      return ''
+    }
+    i++
+  }
+  while(ids[1] != lastId)
+  return ids[0]
 }
 
 function download(id: string): Promise<any> {
@@ -347,8 +368,6 @@ async function start() {
   itemDagFeedItems = new web3.eth.Contract(require('./contracts/MixItemDagOnlyOwner.abi.json'), '0x622d9bd5adf631c6e190f8d2beebcd5533ffa5e6')
   itemStoreIpfsSha256 = new web3.eth.Contract(require('./contracts/MixItemStoreIpfsSha256.abi.json'), itemStoreAddress)
 
-  let feedId = '0x' + bs58.decode(process.env.FEED_ID!).toString('hex') + 'f1b5847865d2094d'
-
   // Calculate private key and controller address.
   let node: bip32.BIP32Interface = bip32.fromSeed(await bip39.mnemonicToSeed(process.env.RECOVERY_PHRASE!))
   privateKey = '0x' + node.derivePath("m/44'/76'/0'/0/0").privateKey!.toString('hex')
@@ -362,17 +381,28 @@ async function start() {
   accountContract = new web3.eth.Contract(require('./contracts/MixAccount2.abi.json'), accountContractAddress)
 
   db = levelup(leveldown('level.db'))
-  let lastId: string = ''
+
+  setInterval(check, 600000)
+}
+
+async function check() {
+  if (checking) {
+    return
+  }
+  checking = true
+
+  let id: string = ''
 
   try {
-    lastId = (await db.get('lastId')).toString()
-    console.log('lastId:', lastId)
+    let lastId: string = (await db.get('lastId')).toString()
+    id = await getNextId(lastId)
   }
-  catch (e) {}
+  catch (e) {
+    id = await getFirstId()
+  }
 
-  let id:string = await getId()
-
-  if (id == lastId) {
+  if (id == '') {
+    checking = false
     return
   }
 
@@ -409,12 +439,13 @@ async function start() {
   let flagsNonce: string = '0x0f' + web3.utils.randomHex(31).substr(2)
   let itemId: string = await itemStoreIpfsSha256.methods.getNewItemId(accountContractAddress, flagsNonce).call()
   let decodedHash = multihashes.decode(multihashes.fromB58String(ipfsInfo.Hash))
+  let feedId = '0x' + bs58.decode(process.env.FEED_ID!).toString('hex') + 'f1b5847865d2094d'
   await sendData(itemDagFeedItems, 'addChild', [feedId, itemStoreAddress, flagsNonce])
   await sendData(itemStoreIpfsSha256, 'create', [flagsNonce, '0x' + decodedHash.digest.toString('hex')])
   console.log('ItemId:', itemId)
 
   db.put('lastId', id)
-  db.close()
+  checking = false
 }
 
 start()
