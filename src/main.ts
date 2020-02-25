@@ -444,7 +444,7 @@ async function check() {
   await sendData(itemStoreIpfsSha256, 'create', [flagsNonce, '0x' + decodedHash.digest.toString('hex')])
   console.log('ItemId:', itemId)
 
-  db.put('lastId', id)
+  await db.put('lastId', id)
   checking = false
 }
 
