@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+message SourceUriMixin {
+  string source_uri = 1;   // URI the item was retreived from.
+}

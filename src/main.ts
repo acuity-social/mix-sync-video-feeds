@@ -420,17 +420,23 @@ async function check() {
   let bodyTextMixinProtoRoot = await load('./src/protobuf/BodyTextMixin.proto')
   let bodyTextMixinProto = bodyTextMixinProtoRoot.lookupType('BodyTextMixin')
 
+  let sourceUriMixinProtoRoot = await load('./src/protobuf/SourceUriMixin.proto')
+  let sourceUriMixinProto = sourceUriMixinProtoRoot.lookupType('SourceUriMixin')
+
   let titleMixinMessage = titleMixinProto.encode(titleMixinProto.create({title: info.title})).finish()
   let bodyTextMixinMessage = bodyTextMixinProto.encode(bodyTextMixinProto.create({bodyText: info.description})).finish()
 
   let imageMixinMessage = await getImageMixinMessage(id)
   let videoMixinMessage = await getVideoMixinMessage(id)
 
+  let sourceUriMixinMessage = sourceUriMixinProto.encode(sourceUriMixinProto.create({sourceUri: 'https://www.youtube.com/watch?v=' + id})).finish()
+
   let itemMessage = itemProto.encode(itemProto.create({mixinPayload: [
     mixinPayloadProto.create({ mixinId: 0x344f4812, payload: titleMixinMessage }),
     mixinPayloadProto.create({ mixinId: 0x2d382044, payload: bodyTextMixinMessage }),
     mixinPayloadProto.create({ mixinId: 0x045eee8c, payload: imageMixinMessage }),
     mixinPayloadProto.create({ mixinId: 0x51108feb, payload: videoMixinMessage }),
+    mixinPayloadProto.create({ mixinId: 0x7b4c9e86, payload: sourceUriMixinMessage }),
   ]})).finish()
 
   let payload = brotliCompressSync(itemMessage)
