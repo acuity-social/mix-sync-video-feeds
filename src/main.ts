@@ -41,7 +41,8 @@ function getIds(i: number): Promise<string[]> {
   return new Promise((resolve, reject) => {
     exec('youtube-dl --dump-single-json --playlist-start ' + (i + 1) + ' --playlist-end ' + (i + 2) + ' --flat-playlist "' + process.env.FEED_SOURCE_URI + '"', (error, stdout, stderr) => {
       if (error) {
-        reject (error)
+        reject(error)
+        return
       }
       let output = JSON.parse(stdout)
       resolve([output.entries[0].id, output.entries[1].id])
@@ -73,7 +74,8 @@ function download(id: string): Promise<any> {
   return new Promise((resolve, reject) => {
     exec('youtube-dl --write-thumbnail --print-json --id --merge-output-format mkv https://www.youtube.com/watch?v=' + id, (error, stdout, stderr) => {
       if (error) {
-        reject (error)
+        reject(error)
+        return
       }
       resolve(JSON.parse(stdout))
     })
@@ -382,15 +384,22 @@ async function start() {
 
   db = levelup(leveldown('level.db'))
 
-  setInterval(check, 600000)
+  setInterval(async () => {
+    if (checking) {
+      return
+    }
+    checking = true
+    try {
+      await check()
+    }
+    catch (e) {
+      console.error(e)
+    }
+    checking = false
+  }, 600000)
 }
 
 async function check() {
-  if (checking) {
-    return
-  }
-  checking = true
-
   let id: string = ''
 
   try {
@@ -402,7 +411,6 @@ async function check() {
   }
 
   if (id == '') {
-    checking = false
     return
   }
 
@@ -451,7 +459,6 @@ async function check() {
   console.log('ItemId:', itemId)
 
   await db.put('lastId', id)
-  checking = false
 }
 
 start()
