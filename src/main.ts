@@ -35,7 +35,6 @@ let accountControllerAddress: string
 let accountContractAddress: string
 let accountContract: any
 let privateKey: string
-let checking: boolean = false
 
 function getIds(i: number): Promise<string[]> {
   return new Promise((resolve, reject) => {
@@ -383,6 +382,8 @@ async function start() {
   accountContract = new web3.eth.Contract(require('./contracts/MixAccount2.abi.json'), accountContractAddress)
 
   db = levelup(leveldown('level.db'))
+
+  let checking: boolean = false
 
   setInterval(async () => {
     if (checking) {
