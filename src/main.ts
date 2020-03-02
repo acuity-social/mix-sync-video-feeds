@@ -381,7 +381,7 @@ async function start() {
 
   accountContract = new web3.eth.Contract(require('./contracts/MixAccount2.abi.json'), accountContractAddress)
 
-  db = levelup(leveldown('level.db'))
+  db = levelup(leveldown(process.env.FEED_ID! + '.db'))
 
   let checking: boolean = false
 
