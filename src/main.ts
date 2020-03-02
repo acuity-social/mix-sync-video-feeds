@@ -383,7 +383,7 @@ async function start() {
 
   db = levelup(leveldown(process.env.FEED_ID! + '.db'))
 
-  let checking: boolean = false
+  let checking: boolean = true
 
   setInterval(async () => {
     if (checking) {
@@ -398,6 +398,14 @@ async function start() {
     }
     checking = false
   }, 3600000)
+
+  try {
+    await check()
+  }
+  catch (e) {
+    console.error(e)
+  }
+  checking = false
 }
 
 async function check() {
