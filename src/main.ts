@@ -38,7 +38,7 @@ let privateKey: string
 
 function getIds(i: number): Promise<string[]> {
   return new Promise((resolve, reject) => {
-    exec('youtube-dl --dump-single-json --playlist-start ' + (i + 1) + ' --playlist-end ' + (i + 2) + ' --flat-playlist "' + process.env.FEED_SOURCE_URI + '"', (error, stdout, stderr) => {
+    exec('youtube-dl --cookies ' + process.env.FEED_ID! + '.cookies --dump-single-json --playlist-start ' + (i + 1) + ' --playlist-end ' + (i + 2) + ' --flat-playlist "' + process.env.FEED_SOURCE_URI + '"', (error, stdout, stderr) => {
       if (error) {
         reject(error)
         return
@@ -71,7 +71,7 @@ async function getNextId(lastId: string): Promise<string> {
 
 function download(id: string): Promise<any> {
   return new Promise((resolve, reject) => {
-    exec('youtube-dl --write-thumbnail --print-json --id --merge-output-format mkv https://www.youtube.com/watch?v=' + id, (error, stdout, stderr) => {
+    exec('youtube-dl --cookies ' + process.env.FEED_ID! + '.cookies --write-thumbnail --print-json --id --merge-output-format mkv https://www.youtube.com/watch?v=' + id, (error, stdout, stderr) => {
       if (error) {
         reject(error)
         return
