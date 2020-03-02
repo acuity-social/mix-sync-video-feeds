@@ -397,7 +397,7 @@ async function start() {
       console.error(e)
     }
     checking = false
-  }, 600000)
+  }, 3600000)
 }
 
 async function check() {
