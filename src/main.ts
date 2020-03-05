@@ -134,10 +134,6 @@ function h264Args(job: any) {
 
   args.push('-i')
   args.push(job.filepath)
-
-  args.push('-t')
-  args.push('10')
-
   args.push('-c:v')
   args.push('libx264')
   args.push('-crf')
