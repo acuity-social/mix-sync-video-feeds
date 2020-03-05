@@ -118,6 +118,7 @@ function interrogate(id: string): Promise<any> {
 
         info.jobs.push({
           filepath: filepath,
+          filepathOut: id + '.' + height + '.mp4',
           height: height,
           width: width,
           audioPassthrough: info.codecAudio == 'aac',
@@ -133,6 +134,10 @@ function h264Args(job: any) {
 
   args.push('-i')
   args.push(job.filepath)
+
+  args.push('-t')
+  args.push('10')
+
   args.push('-c:v')
   args.push('libx264')
   args.push('-crf')
@@ -153,7 +158,7 @@ function h264Args(job: any) {
   args.push('-movflags')
   args.push('+faststart')
   args.push('-y')
-  args.push(job.height + '.mp4')
+  args.push(job.filepathOut)
 
   return args
 }
@@ -309,9 +314,9 @@ function getVideoMixinMessage(id: string) {
 
     for (let job of result.jobs) {
       await transcode(job)
-      let ipfsHash: string = await ipfsAddFile(job.height + '.mp4')
+      let ipfsHash: string = await ipfsAddFile(job.filepathOut)
       console.log(ipfsHash)
-      fs.unlinkSync(job.height + '.mp4')
+      fs.unlinkSync(job.filepathOut)
 
       encodings.push(encodingProto.create({
         ipfsHash: bs58.decode(ipfsHash),
