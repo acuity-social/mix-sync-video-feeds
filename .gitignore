@@ -1,4 +1,8 @@
 /node_modules/
 /yarn-error.log
 /.env
-/level.db/
+/*.db/
+/*.cookies
+/*.mp4
+/*.mkv
+/*.jpg
