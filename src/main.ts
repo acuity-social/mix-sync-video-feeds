@@ -121,7 +121,8 @@ function interrogate(id: string): Promise<any> {
           filepathOut: './' + id + '.' + height + '.mp4',
           height: height,
           width: width,
-          audioPassthrough: info.codecAudio == 'aac',
+          audioPassthrough: false, //info.codecAudio == 'aac',
+          // TODO: aac must not be 32 bit
         })
       }
       resolve(info)
