@@ -83,7 +83,7 @@ function download(id: string): Promise<any> {
 
 function interrogate(id: string): Promise<any> {
   return new Promise((resolve, reject) => {
-    let filepath: string = id + '.mkv'
+    let filepath: string = './' + id + '.mkv'
     exec('ffmpeg -i ' + filepath, (error: Error | null, stdout, stderr) => {
       let output: string = error!.toString()
       let info: any = {}
@@ -118,7 +118,7 @@ function interrogate(id: string): Promise<any> {
 
         info.jobs.push({
           filepath: filepath,
-          filepathOut: id + '.' + height + '.mp4',
+          filepathOut: './' + id + '.' + height + '.mp4',
           height: height,
           width: width,
           audioPassthrough: info.codecAudio == 'aac',
