@@ -121,6 +121,7 @@ function interrogate(id: string): Promise<any> {
           filepathOut: './' + id + '.' + height + '.mp4',
           height: height,
           width: width,
+          gopSize: Math.round(info.frameRate * 2),  // keyframe every 2 secs max
           audioPassthrough: false, //info.codecAudio == 'aac',
           // TODO: aac must not be 32 bit
         })
@@ -144,7 +145,7 @@ function h264Args(job: any) {
   args.push('-vf')
   args.push('scale=' + job.width + ':' + job.height)
   args.push('-g')
-  args.push('240')
+  args.push(job.gopSize)
   args.push('-c:a')
   if (job.audioPassthrough) {
     args.push('copy')
