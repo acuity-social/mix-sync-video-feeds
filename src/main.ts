@@ -164,7 +164,7 @@ function h264Args(job: any) {
 function transcode(job: any) {
   return new Promise((resolve, reject) => {
     let args: string[] = h264Args(job)
-    let ffmpegProcess = spawn('ffmpeg', args)
+    let ffmpegProcess = spawn('nice', ['-n 19', 'ffmpeg', ...args])
     ffmpegProcess.stdout.on('data', (data) => {
       console.log(data.toString().trim())
     })
