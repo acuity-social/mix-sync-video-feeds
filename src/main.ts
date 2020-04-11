@@ -363,7 +363,19 @@ async function sendData(contract: any, method: string, params: any) {
 }
 
 async function start() {
-  web3 = new Web3(new Web3.providers.IpcProvider(process.env.MIX_IPC_PATH!, net))
+
+  await new Promise((resolve, reject) => {
+    let intervalId = setInterval(async () => {
+      try {
+        web3 = new Web3(new Web3.providers.IpcProvider(process.env.MIX_IPC_PATH!, net))
+        await web3.eth.getProtocolVersion()
+        clearInterval(intervalId)
+        resolve()
+      }
+      catch (e) {}
+    }, 1000)
+  })
+
   web3.eth.defaultBlock = 'pending'
   web3.eth.transactionConfirmationBlocks = 1
   console.log('Block:', (await web3.eth.getBlockNumber()).toLocaleString())
