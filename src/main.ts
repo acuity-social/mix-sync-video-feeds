@@ -8,7 +8,7 @@ import net from 'net'
 import * as bip32 from 'bip32'
 import * as bip39  from 'bip39'
 import bs58 from 'bs58'
-import { request } from 'http'
+import http from 'http'
 import sharp from 'sharp'
 import EthCommon from 'ethereumjs-common'
 import { Transaction as EthTx } from 'ethereumjs-tx'
@@ -192,11 +192,40 @@ function ipfsAddFile(filename: string): Promise<string> {
   })
 }
 
+let agent = new http.Agent({
+  keepAlive: true,
+})
+
+function ipfsGet(command: string, json: boolean = true): Promise<any> {
+  return new Promise((resolve, reject) => {
+    let options = {
+      agent: agent,
+      path: '/api/v0/' + command,
+      port: process.env.IPFS_PORT,
+    }
+
+    http.get(options)
+    .on('response', res => {
+      let body = ''
+      res.on('data', (data: any) => {
+        body += data
+      })
+      res.on('end', () => {
+        resolve(json ? JSON.parse(body) : body)
+      })
+    })
+    .on('error', (error) => {
+      reject(error)
+    })
+  })
+}
+
 function ipfsAdd(data: Buffer, encoding: string = 'binary'): Promise<any> {
   return new Promise((resolve, reject) => {
     let boundary = web3.utils.randomHex(32)
 
     let options = {
+      agent: agent,
       headers: {
         'Content-Type': 'multipart/form-data; boundary=' + boundary,
       },
@@ -211,7 +240,7 @@ function ipfsAdd(data: Buffer, encoding: string = 'binary'): Promise<any> {
     postData += data.toString('binary')
     postData += '\r\n--' + boundary + '--\r\n'
 
-    let req = request(options)
+    let req = http.request(options)
     .on('response', res => {
       let body = ''
       res.on('data', data => {
@@ -363,7 +392,7 @@ async function sendData(contract: any, method: string, params: any) {
 }
 
 async function start() {
-
+  console.log('Waiting for MIX IPC.')
   await new Promise((resolve, reject) => {
     let intervalId = setInterval(async () => {
       try {
@@ -379,6 +408,18 @@ async function start() {
   web3.eth.defaultBlock = 'pending'
   web3.eth.transactionConfirmationBlocks = 1
   console.log('Block:', (await web3.eth.getBlockNumber()).toLocaleString())
+
+  console.log('Waiting for IPFS RPC.')
+  await new Promise((resolve, reject) => {
+    let intervalId = setInterval(async () => {
+      try {
+        await ipfsGet('id')
+        clearInterval(intervalId)
+        resolve()
+      }
+      catch (e) {}
+    }, 1000)
+  })
 
   accountRegistry = new web3.eth.Contract(require('./contracts/MixAccountRegistry.abi.json'), '0xbcab5026b4d79396b222abc4d1ca36db10984c73')
   itemDagFeedItems = new web3.eth.Contract(require('./contracts/MixItemDagOnlyOwner.abi.json'), '0x622d9bd5adf631c6e190f8d2beebcd5533ffa5e6')
