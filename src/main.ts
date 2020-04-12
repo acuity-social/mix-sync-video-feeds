@@ -204,7 +204,7 @@ function ipfsGet(command: string, json: boolean = true): Promise<any> {
       port: process.env.IPFS_PORT,
     }
 
-    http.get(options)
+    let req: any = http.get(options)
     .on('response', res => {
       let body = ''
       res.on('data', (data: any) => {
@@ -214,8 +214,18 @@ function ipfsGet(command: string, json: boolean = true): Promise<any> {
         resolve(json ? JSON.parse(body) : body)
       })
     })
-    .on('error', (error) => {
-      reject(error)
+    .on('error', async (error: any) => {
+      if (req.reusedSocket && error.code === 'ECONNRESET') {
+        try {
+          resolve(await ipfsGet(command, json))
+        }
+        catch (error) {
+          reject(error)
+        }
+      }
+      else {
+        reject(error)
+      }
     })
   })
 }
