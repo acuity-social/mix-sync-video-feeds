@@ -250,7 +250,7 @@ function ipfsAdd(data: Buffer, encoding: string = 'binary'): Promise<any> {
     postData += data.toString('binary')
     postData += '\r\n--' + boundary + '--\r\n'
 
-    let req = http.request(options)
+    let req: any = http.request(options)
     .on('response', res => {
       let body = ''
       res.on('data', data => {
@@ -260,8 +260,18 @@ function ipfsAdd(data: Buffer, encoding: string = 'binary'): Promise<any> {
         resolve(JSON.parse(body))
       })
     })
-    .on('error', (error) => {
-      reject(error)
+    .on('error', async (error: any) => {
+      if (req.reusedSocket && error.code === 'ECONNRESET') {
+        try {
+          resolve(await ipfsAdd(data, encoding))
+        }
+        catch (error) {
+          reject(error)
+        }
+      }
+      else {
+        reject(error)
+      }
     })
 
     req.write(postData, encoding)
