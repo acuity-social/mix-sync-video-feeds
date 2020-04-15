@@ -485,15 +485,13 @@ async function start() {
 }
 
 async function check() {
-  let id: string = ''
-
+  let lastId: string = ''
   try {
-    let lastId: string = (await db.get('lastId')).toString()
-    id = await getNextId(lastId)
+    lastId = (await db.get('lastId')).toString()
   }
-  catch (e) {
-    id = await getFirstId()
-  }
+  catch {}
+
+  let id: string = (lastId != '') ? await getNextId(lastId) : await getFirstId()
 
   if (id == '') {
     return
