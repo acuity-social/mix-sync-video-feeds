@@ -485,7 +485,7 @@ async function start() {
       console.error(e)
     }
     checking = false
-  }, 3600000)
+  }, 1800000)
 
   try {
     await check()
