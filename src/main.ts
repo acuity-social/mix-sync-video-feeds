@@ -204,7 +204,7 @@ function ipfsGet(command: string, json: boolean = true): Promise<any> {
       port: process.env.IPFS_PORT,
     }
 
-    let req: any = http.get(options)
+    http.get(options)
     .on('response', res => {
       let body = ''
       res.on('data', (data: any) => {
@@ -215,7 +215,7 @@ function ipfsGet(command: string, json: boolean = true): Promise<any> {
       })
     })
     .on('error', async (error: any) => {
-      if (req.reusedSocket && error.code === 'ECONNRESET') {
+      if (error.code === 'ECONNRESET') {
         try {
           resolve(await ipfsGet(command, json))
         }
@@ -261,7 +261,19 @@ function ipfsAdd(data: Buffer, encoding: string = 'binary'): Promise<any> {
       })
     })
     .on('error', async (error: any) => {
-      if (req.reusedSocket && error.code === 'ECONNRESET') {
+      if (error.code === 'ECONNREFUSED') {
+        console.log('Connection refused, waiting 10 seconds.')
+        setTimeout(async () => {
+          console.log('Trying again.')
+          try {
+            resolve(await ipfsAdd(data, encoding))
+          }
+          catch (error) {
+            reject(error)
+          }
+        }, 10000)
+      }
+      else if (error.code === 'ECONNRESET') {
         try {
           resolve(await ipfsAdd(data, encoding))
         }
