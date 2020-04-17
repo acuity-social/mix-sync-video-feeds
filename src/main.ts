@@ -392,9 +392,8 @@ function getVideoMixinMessage(id: string) {
   })
 }
 
-async function _send(transaction: any) {
+async function _send(transaction: any, nonce: number) {
   return new Promise(async (resolve, reject) => {
-    let nonce = await web3.eth.getTransactionCount(accountControllerAddress)
     let data = await transaction.encodeABI()
     let rawTx = {
       nonce: nonce,
@@ -416,11 +415,11 @@ async function _send(transaction: any) {
   })
 }
 
-async function sendData(contract: any, method: string, params: any) {
+async function sendData(contract: any, method: string, params: any, nonce: number) {
   let to = contract.options.address
   let data = contract.methods[method](...params).encodeABI()
   let inner = accountContract.methods.sendCallNoReturn(to, data)
-  return await _send(inner)
+  return await _send(inner, nonce)
 }
 
 async function start() {
@@ -549,8 +548,9 @@ async function check() {
   let itemId: string = await itemStoreIpfsSha256.methods.getNewItemId(accountContractAddress, flagsNonce).call()
   let decodedHash = multihashes.decode(multihashes.fromB58String(ipfsInfo.Hash))
   let feedId = '0x' + bs58.decode(process.env.FEED_ID!).toString('hex') + 'f1b5847865d2094d'
-  await sendData(itemDagFeedItems, 'addChild', [feedId, itemStoreAddress, flagsNonce])
-  await sendData(itemStoreIpfsSha256, 'create', [flagsNonce, '0x' + decodedHash.digest.toString('hex')])
+  let nonce = await web3.eth.getTransactionCount(accountControllerAddress)
+  await sendData(itemDagFeedItems, 'addChild', [feedId, itemStoreAddress, flagsNonce], nonce)
+  await sendData(itemStoreIpfsSha256, 'create', [flagsNonce, '0x' + decodedHash.digest.toString('hex')], nonce + 1)
   console.log('ItemId:', itemId)
 
   await db.put('lastId', id)
