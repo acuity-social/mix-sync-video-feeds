@@ -114,7 +114,7 @@ function interrogate(id: string): Promise<any> {
 
       for (let b of resolutions) {
         let height = b * 9
-        let width = (height * info.width) / info.height
+        let width = Math.round((((height * info.width) / info.height) / 2)) * 2
 
         info.jobs.push({
           filepath: filepath,
