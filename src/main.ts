@@ -98,7 +98,7 @@ function interrogate(id: string): Promise<any> {
       matches = output.match(/Audio: (\w*)/)!
       info.codecAudio = matches[1]
 
-      let supported_resolutions: number[] = [20, 40, 80, 120, 160, 240, 320, 480]
+      let supported_resolutions: number[] = [20, 40, 80, 120]//, 160, 240, 320, 480]
       let resolutions: number[] = []
 
       for (let b of supported_resolutions) {
