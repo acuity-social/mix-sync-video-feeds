@@ -21,7 +21,7 @@
     "levelup": "^4.3.2",
     "multihashes": "^0.4.15",
     "protobufjs": "^6.8.8",
-    "sharp": "^0.24.0",
+    "sharp": "^0.30.5",
     "web3": "^1.2.6"
   },
   "devDependencies": {
