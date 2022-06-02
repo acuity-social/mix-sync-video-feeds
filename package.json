@@ -20,7 +20,7 @@
     "leveldown": "^5.4.1",
     "levelup": "^4.3.2",
     "multihashes": "^0.4.15",
-    "protobufjs": "^6.8.8",
+    "protobufjs": "^6.11.3",
     "sharp": "^0.24.0",
     "web3": "^1.2.6"
   },
